@@ -68,13 +68,13 @@ $minimalSarifBase64 = [Convert]::ToBase64String([System.IO.File]::ReadAllBytes($
 
 # Set up API request headers
 $headers = @{
-    Authorization = "token "  # Replace with your actual GitHub token
+    Authorization = "token put_token"  # Replace with your actual GitHub token
     Accept = "application/vnd.github+json"
 }
 
 # Define the API request body
 $body = @{
-    commit_sha = "commit_sha"  # Replace with actual commit SHA
+    commit_sha = "dd10f1307219da1a70d8201d9b31e846632f02b1"  # Replace with actual commit SHA
     ref = "refs/heads/main"
     sarif = $minimalSarifBase64
 } | ConvertTo-Json
