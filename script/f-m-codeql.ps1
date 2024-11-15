@@ -2,7 +2,7 @@
 $SOURCE_REPO = "saideep11111/source2"   # Replace with your source repo
 $TARGET_REPO = "saideep11112/s2"   # Replace with your target repo
 $TARGET_REF = "refs/heads/main"         # Target branch reference
-$githubToken = ""      # Replace with your GitHub token
+$githubToken = "Put_Token"      # Replace with your GitHub token
 
 # Set the base directory for all files
 $baseDir = "C:\Users\saide\OneDrive\Desktop\bacd\codeql_migration"
