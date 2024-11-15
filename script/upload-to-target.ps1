@@ -1,9 +1,9 @@
 # Define parameters
 $owner = "saideep11112"  # Replace with the target repo's owner
-$repo = "source2"  # Replace with the target repo name
+$repo = "S1"  # Replace with the target repo name
 $sarifFile = "C:\Users\saide\OneDrive\Desktop\bacd\codeql_migration\analysis.sarif"  # Path to your SARIF file
-$githubToken = ""  # Replace with your GitHub token
-$commitSHA = "71c3d1a05100149c0bffe1d920183ddc3d8327bd"  # Replace with the actual 40-character commit SHA
+$githubToken = "Put_token"  # Replace with your GitHub token
+$commitSHA = "93eb9b74e98ec27f04e04e561fb2b8dc3f5f4bac"  # Replace with the actual 40-character commit SHA
 $branchRef = "refs/heads/main"  # The branch reference
 
 # Verify the SARIF file exists
