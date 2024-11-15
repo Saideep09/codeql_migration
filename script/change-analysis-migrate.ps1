@@ -1,5 +1,5 @@
 # Define URLs and file paths
-$apiUrl = "https://api.github.com/repos/saideep11111/source2/code-scanning/analyses/314668247"
+$apiUrl = "https://api.github.com/repos/saideep11111/s1/code-scanning/analyses/326224495"
 $jsonFile = "analysis.json"  # Temp file for JSON data
 $sarifFile = "analysis.sarif"  # Output SARIF file
 
