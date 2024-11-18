@@ -9,9 +9,11 @@ jobs:
     runs-on: windows-latest
 
     steps:
+    # Step 1: Checkout the repository
     - name: Checkout the repository
       uses: actions/checkout@v3
 
+    # Step 2: Validate Personal Access Tokens (PAT)
     - name: Validate PAT Tokens
       shell: pwsh
       env:
@@ -27,6 +29,7 @@ jobs:
           exit 1
         }
 
+    # Step 3: Extract Repository Details from Issue Body
     - name: Extract Issue Body Details
       id: extract_issue
       uses: actions/github-script@v6
@@ -54,6 +57,7 @@ jobs:
           core.setOutput("target_org", targetOrg);
           core.setOutput("target_repo", targetRepo);
 
+    # Step 4: Print Variables for Debugging
     - name: Print Parsed Variables
       run: |
         echo "Source Organization: ${{ steps.extract_issue.outputs.source_org }}"
@@ -61,6 +65,11 @@ jobs:
         echo "Target Organization: ${{ steps.extract_issue.outputs.target_org }}"
         echo "Target Repository: ${{ steps.extract_issue.outputs.target_repo }}"
 
+    # Step 5: Check GitHub CLI Installation
+    - name: Check GitHub CLI Version
+      run: gh --version
+
+    # Step 6: Run Migration Script
     - name: Run Migration Script
       shell: pwsh
       env:
@@ -70,6 +79,7 @@ jobs:
         TARGET_REPO: "${{ steps.extract_issue.outputs.target_repo }}"
         SOURCE_TOKEN: ${{ secrets.SOURCE_TOKEN }}
         TARGET_TOKEN: ${{ secrets.TARGET_TOKEN }}
+        GH_TOKEN: ${{ secrets.SOURCE_TOKEN }} # Ensures authentication for GitHub CLI
       run: |
         # Define variables
         $SourceOrg = "${{ env.SOURCE_ORG }}"
