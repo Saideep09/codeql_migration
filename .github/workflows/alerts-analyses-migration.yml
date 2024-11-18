@@ -13,15 +13,16 @@ jobs:
       uses: actions/checkout@v3
 
     - name: Validate PAT Tokens
+      shell: pwsh
       run: |
-        if [ -z "${{ secrets.SOURCE_TOKEN }}" ]; then
-          echo "Source Token is missing!"
+        if (-not $env:SOURCE_TOKEN) {
+          Write-Error "Source Token is missing!"
           exit 1
-        fi
-        if [ -z "${{ secrets.TARGET_TOKEN }}" ]; then
-          echo "Target Token is missing!"
+        }
+        if (-not $env:TARGET_TOKEN) {
+          Write-Error "Target Token is missing!"
           exit 1
-        fi
+        }
 
     - name: Extract Issue Body Details
       id: extract_issue
