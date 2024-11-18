@@ -15,7 +15,7 @@ jobs:
     - name: Set up PowerShell
       uses: actions/setup-powershell@v2
 
-    - name: Validate PAT tokens
+    - name: Validate PAT Tokens
       run: |
         if [[ -z "${{ secrets.SOURCE_TOKEN }}" ]]; then
           echo "Source Token is missing!"
@@ -27,24 +27,27 @@ jobs:
         fi
       shell: bash
 
-    - name: Get Issue Body
-      id: issue_body
+    - name: Extract Issue Body Details
+      id: extract_issue
       uses: actions/github-script@v6
       with:
         script: |
-          const issueBody = context.payload.issue.body;
+          const issueBody = context.payload.issue.body || '';
           console.log("Issue Body: ", issueBody);
 
-          // Use regex to extract organization and repository names
           const sourceOrgMatch = issueBody.match(/### Source Organization\s*\n*(.*)/);
           const sourceRepoMatch = issueBody.match(/### Source Repository\s*\n*(.*)/);
           const targetOrgMatch = issueBody.match(/### Target Organization\s*\n*(.*)/);
           const targetRepoMatch = issueBody.match(/### Target Repository\s*\n*(.*)/);
 
-          const sourceOrg = sourceOrgMatch ? sourceOrgMatch[1].trim() : "Not provided";
-          const sourceRepo = sourceRepoMatch ? sourceRepoMatch[1].trim() : "Not provided";
-          const targetOrg = targetOrgMatch ? targetOrgMatch[1].trim() : "Not provided";
-          const targetRepo = targetRepoMatch ? targetRepoMatch[1].trim() : "Not provided";
+          const sourceOrg = sourceOrgMatch ? sourceOrgMatch[1].trim() : null;
+          const sourceRepo = sourceRepoMatch ? sourceRepoMatch[1].trim() : null;
+          const targetOrg = targetOrgMatch ? targetOrgMatch[1].trim() : null;
+          const targetRepo = targetRepoMatch ? targetRepoMatch[1].trim() : null;
+
+          if (!sourceOrg || !sourceRepo || !targetOrg || !targetRepo) {
+            throw new Error('Required details missing in issue body.');
+          }
 
           console.log("Source Organization: ", sourceOrg);
           console.log("Source Repository: ", sourceRepo);
@@ -56,24 +59,24 @@ jobs:
           core.setOutput("target_org", targetOrg);
           core.setOutput("target_repo", targetRepo);
 
-    - name: Print Variables
+    - name: Print Parsed Variables
       run: |
-        echo "Source Organization: ${{ steps.issue_body.outputs.source_org }}"
-        echo "Source Repository: ${{ steps.issue_body.outputs.source_repo }}"
-        echo "Target Organization: ${{ steps.issue_body.outputs.target_org }}"
-        echo "Target Repository: ${{ steps.issue_body.outputs.target_repo }}"
+        echo "Source Organization: ${{ steps.extract_issue.outputs.source_org }}"
+        echo "Source Repository: ${{ steps.extract_issue.outputs.source_repo }}"
+        echo "Target Organization: ${{ steps.extract_issue.outputs.target_org }}"
+        echo "Target Repository: ${{ steps.extract_issue.outputs.target_repo }}"
 
-    - name: Run Code Scanning Alerts and Analyses Migration
+    - name: Run Migration Script
       shell: pwsh
       env:
-        SOURCE_ORG: "${{ steps.issue_body.outputs.source_org }}"
-        SOURCE_REPO: "${{ steps.issue_body.outputs.source_repo }}"
-        TARGET_ORG: "${{ steps.issue_body.outputs.target_org }}"
-        TARGET_REPO: "${{ steps.issue_body.outputs.target_repo }}"
+        SOURCE_ORG: "${{ steps.extract_issue.outputs.source_org }}"
+        SOURCE_REPO: "${{ steps.extract_issue.outputs.source_repo }}"
+        TARGET_ORG: "${{ steps.extract_issue.outputs.target_org }}"
+        TARGET_REPO: "${{ steps.extract_issue.outputs.target_repo }}"
         SOURCE_TOKEN: "${{ secrets.SOURCE_TOKEN }}"
         TARGET_TOKEN: "${{ secrets.TARGET_TOKEN }}"
       run: |
-        # Set up variables
+        # Define variables
         $SourceOrg = "${{ env.SOURCE_ORG }}"
         $SourceRepo = "${{ env.SOURCE_REPO }}"
         $TargetOrg = "${{ env.TARGET_ORG }}"
@@ -81,30 +84,31 @@ jobs:
         $SourceToken = "${{ env.SOURCE_TOKEN }}"
         $TargetToken = "${{ env.TARGET_TOKEN }}"
         $SarifDirectory = "$PWD/sarif"
+        $BranchRef = "refs/heads/main"
 
         # Create SARIF directory if it doesn't exist
-        if (!(Test-Path -Path $sarifDirectory)) {
-            New-Item -ItemType Directory -Path $sarifDirectory
+        if (!(Test-Path -Path $SarifDirectory)) {
+            New-Item -ItemType Directory -Path $SarifDirectory
         }
-        
-        # --- Fetch the Latest Commit SHA from Target Repository ---
-        Write-Output "Fetching the latest commit SHA from the target repository..."
-        $latestCommitUrl = "https://api.github.com/repos/$targetOwner/$targetRepo/commits/$branchRef"
-        $latestCommit = & gh api -X GET $latestCommitUrl -H "Authorization: token $githubToken" | ConvertFrom-Json
-        
+
+        # --- Fetch Latest Commit SHA ---
+        Write-Output "Fetching latest commit SHA from target repository..."
+        $latestCommitUrl = "https://api.github.com/repos/$TargetOrg/$TargetRepo/commits/$BranchRef"
+        $latestCommit = & gh api -X GET $latestCommitUrl -H "Authorization: token $TargetToken" | ConvertFrom-Json
+
         if ($latestCommit.sha) {
             $latestCommitSha = $latestCommit.sha
             Write-Output "Using commit SHA: $latestCommitSha for SARIF uploads."
         } else {
             Write-Output "Failed to fetch the latest commit SHA. Exiting."
-            exit
+            exit 1
         }
-        
+
         # --- Migrate Alerts ---
-        Write-Output "Fetching alerts from the source repository..."
-        $alertsUrl = "https://api.github.com/repos/$sourceOwner/$sourceRepo/code-scanning/alerts"
-        $alertsList = & gh api -X GET $alertsUrl -H "Authorization: token $githubToken" | ConvertFrom-Json
-        
+        Write-Output "Fetching alerts from source repository..."
+        $alertsUrl = "https://api.github.com/repos/$SourceOrg/$SourceRepo/code-scanning/alerts"
+        $alertsList = & gh api -X GET $alertsUrl -H "Authorization: token $SourceToken" | ConvertFrom-Json
+
         if ($alertsList) {
             Write-Output "Converting alerts to SARIF format..."
             $sarifDataAlerts = @{
@@ -112,8 +116,7 @@ jobs:
                 '$schema' = "https://schemastore.azurewebsites.net/schemas/json/sarif-2.1.0-rtm.4.json"
                 runs = @()
             }
-        
-            # Create a SARIF run for alerts
+
             $sarifRunAlerts = @{
                 tool = @{
                     driver = @{
@@ -125,11 +128,10 @@ jobs:
                 }
                 results = @()
             }
-        
+
             foreach ($alert in $alertsList) {
                 $ruleId = $alert.rule.id
-        
-                # Add rule to SARIF rules section if not already added
+
                 if (-not ($sarifRunAlerts.tool.driver.rules | Where-Object { $_.id -eq $ruleId })) {
                     $sarifRunAlerts.tool.driver.rules += @{
                         id = $ruleId
@@ -142,19 +144,14 @@ jobs:
                         }
                     }
                 }
-        
-                # Add real alert data to SARIF results
+
                 $sarifRunAlerts.results += @{
                     ruleId = $ruleId
-                    message = @{
-                        text = $alert.most_recent_instance.message.text
-                    }
+                    message = @{ text = $alert.most_recent_instance.message.text }
                     locations = @(
                         @{
                             physicalLocation = @{
-                                artifactLocation = @{
-                                    uri = $alert.most_recent_instance.location.path
-                                }
+                                artifactLocation = @{ uri = $alert.most_recent_instance.location.path }
                                 region = @{
                                     startLine = $alert.most_recent_instance.location.start_line
                                     endLine = $alert.most_recent_instance.location.end_line
@@ -171,44 +168,38 @@ jobs:
                     }
                 }
             }
-        
-            # Add run to SARIF data
+
             $sarifDataAlerts.runs += $sarifRunAlerts
-        
-            # Save SARIF file for alerts
-            $sarifFileAlerts = "$sarifDirectory\alerts.sarif"
+            $sarifFileAlerts = "$SarifDirectory\alerts.sarif"
             $sarifDataAlerts | ConvertTo-Json -Depth 10 | Set-Content -Path $sarifFileAlerts -Force
             Write-Output "SARIF file for alerts created at $sarifFileAlerts."
         }
-        
+
         # --- Migrate Analyses ---
-        Write-Output "Fetching analyses from the source repository..."
-        $analysesUrl = "https://api.github.com/repos/$sourceOwner/$sourceRepo/code-scanning/analyses"
-        $analysesList = & gh api -X GET $analysesUrl -H "Authorization: token $githubToken" | ConvertFrom-Json
-        
+        Write-Output "Fetching analyses from source repository..."
+        $analysesUrl = "https://api.github.com/repos/$SourceOrg/$SourceRepo/code-scanning/analyses"
+        $analysesList = & gh api -X GET $analysesUrl -H "Authorization: token $SourceToken" | ConvertFrom-Json
+
         foreach ($analysis in $analysesList) {
             $analysisId = $analysis.id
-            $commitSHA = $analysis.commit_sha
-            $sarifFileAnalysis = "$sarifDirectory\analysis_$analysisId.sarif"
-        
-            # Fetch analysis data
-            $analysisDetailsUrl = "https://api.github.com/repos/$sourceOwner/$sourceRepo/code-scanning/analyses/$analysisId"
-            $analysisData = & gh api -X GET $analysisDetailsUrl -H "Authorization: token $githubToken" | ConvertFrom-Json
-        
-            # Skip if no results exist for the analysis
+            $sarifFileAnalysis = "$SarifDirectory\analysis_$analysisId.sarif"
+            Write-Output "Processing analysis ID: $analysisId"
+
+            # Fetch analysis details
+            $analysisDetailsUrl = "https://api.github.com/repos/$SourceOrg/$SourceRepo/code-scanning/analyses/$analysisId"
+            $analysisData = & gh api -X GET $analysisDetailsUrl -H "Authorization: token $SourceToken" | ConvertFrom-Json
+
             if (-not $analysisData.results_count -or $analysisData.results_count -eq 0) {
                 Write-Output "Skipping analysis $analysisId as it has no results."
                 continue
             }
-        
-            # Create SARIF template for the analysis
+
             $sarifDataAnalysis = @{
                 version = "2.1.0"
                 '$schema' = "https://schemastore.azurewebsites.net/schemas/json/sarif-2.1.0-rtm.4.json"
                 runs = @()
             }
-        
-            # Add analysis metadata to SARIF
+
             $sarifRunAnalysis = @{
                 tool = @{
                     driver = @{
@@ -217,27 +208,17 @@ jobs:
                         informationUri = "https://github.com/github/codeql"
                     }
                 }
-                properties = @{
-                    commit_sha = $commitSHA
-                    analysis_key = $analysisData.analysis_key
-                    ref = $analysisData.ref
-                }
                 results = @()
             }
-        
-            # Add results only if available
+
             foreach ($result in $analysisData.results) {
                 $sarifRunAnalysis.results += @{
                     ruleId = $result.ruleId
-                    message = @{
-                        text = $result.message.text
-                    }
+                    message = @{ text = $result.message.text }
                     locations = @(
                         @{
                             physicalLocation = @{
-                                artifactLocation = @{
-                                    uri = $result.location.path
-                                }
+                                artifactLocation = @{ uri = $result.location.path }
                                 region = @{
                                     startLine = $result.location.startLine
                                     endLine = $result.location.endLine
@@ -249,54 +230,10 @@ jobs:
                     )
                 }
             }
-        
+
             $sarifDataAnalysis.runs += $sarifRunAnalysis
-        
-            # Save SARIF file for analysis
             $sarifDataAnalysis | ConvertTo-Json -Depth 10 | Set-Content -Path $sarifFileAnalysis -Force
             Write-Output "SARIF file for analysis $analysisId created at $sarifFileAnalysis."
         }
-        
-        # --- Upload All SARIF Files ---
-        $allSarifFiles = Get-ChildItem -Path $sarifDirectory -Filter *.sarif
-        
-        foreach ($sarifFile in $allSarifFiles) {
-            Write-Output "Uploading $($sarifFile.Name) to target repository..."
-            $sarifContent = Get-Content -Path $sarifFile.FullName -Raw
-            $memoryStream = New-Object System.IO.MemoryStream
-            $gzipStream = New-Object System.IO.Compression.GzipStream($memoryStream, [System.IO.Compression.CompressionMode]::Compress)
-            $streamWriter = New-Object System.IO.StreamWriter($gzipStream)
-        
-            try {
-                $streamWriter.Write($sarifContent)
-                $streamWriter.Close()
-                $gzipBase64 = [Convert]::ToBase64String($memoryStream.ToArray())
-            } catch {
-                Write-Output "Error compressing SARIF file: $($_.Exception.Message)"
-                continue
-            } finally {
-                $memoryStream.Close()
-                $gzipStream.Close()
-            }
-        
-            $response = Invoke-RestMethod -Uri "https://api.github.com/repos/$targetOwner/$targetRepo/code-scanning/sarifs" `
-                -Headers @{
-                    Authorization = "token $githubToken"
-                    Accept = "application/vnd.github+json"
-                } `
-                -Method Post `
-                -Body (@{
-                    commit_sha = $latestCommitSha
-                    ref = $branchRef
-                    sarif = $gzipBase64
-                    tool_name = "CodeQL"
-                } | ConvertTo-Json -Depth 10)
-        
-            if ($response -and $response.id) {
-                Write-Output "Uploaded SARIF file: $($sarifFile.Name) successfully. Analysis ID: $($response.id)"
-            } else {
-                Write-Output "Failed to upload SARIF file: $($sarifFile.Name)."
-            }
-        }
-        
+
         Write-Output "Migration process completed."
