@@ -14,6 +14,9 @@ jobs:
 
     - name: Validate PAT Tokens
       shell: pwsh
+      env:
+        SOURCE_TOKEN: ${{ secrets.SOURCE_TOKEN }}
+        TARGET_TOKEN: ${{ secrets.TARGET_TOKEN }}
       run: |
         if (-not $env:SOURCE_TOKEN) {
           Write-Error "Source Token is missing!"
@@ -23,9 +26,6 @@ jobs:
           Write-Error "Target Token is missing!"
           exit 1
         }
-      env:
-        SOURCE_TOKEN: ${{ secrets.SOURCE_TOKEN }}
-        TARGET_TOKEN: ${{ secrets.TARGET_TOKEN }}
 
     - name: Extract Issue Body Details
       id: extract_issue
@@ -49,11 +49,6 @@ jobs:
             throw new Error('Required details missing in issue body.');
           }
 
-          console.log("Source Organization: ", sourceOrg);
-          console.log("Source Repository: ", sourceRepo);
-          console.log("Target Organization: ", targetOrg);
-          console.log("Target Repository: ", targetRepo);
-
           core.setOutput("source_org", sourceOrg);
           core.setOutput("source_repo", sourceRepo);
           core.setOutput("target_org", targetOrg);
@@ -73,8 +68,8 @@ jobs:
         SOURCE_REPO: "${{ steps.extract_issue.outputs.source_repo }}"
         TARGET_ORG: "${{ steps.extract_issue.outputs.target_org }}"
         TARGET_REPO: "${{ steps.extract_issue.outputs.target_repo }}"
-        SOURCE_TOKEN: "${{ secrets.SOURCE_TOKEN }}"
-        TARGET_TOKEN: "${{ secrets.TARGET_TOKEN }}"
+        SOURCE_TOKEN: ${{ secrets.SOURCE_TOKEN }}
+        TARGET_TOKEN: ${{ secrets.TARGET_TOKEN }}
       run: |
         # Define variables
         $SourceOrg = "${{ env.SOURCE_ORG }}"
@@ -91,7 +86,7 @@ jobs:
             New-Item -ItemType Directory -Path $SarifDirectory
         }
 
-        # --- Fetch Latest Commit SHA ---
+        # Fetch Latest Commit SHA
         Write-Output "Fetching latest commit SHA from target repository..."
         $latestCommitUrl = "https://api.github.com/repos/$TargetOrg/$TargetRepo/commits/$BranchRef"
         $latestCommit = & gh api -X GET $latestCommitUrl -H "Authorization: token $TargetToken" | ConvertFrom-Json
@@ -100,11 +95,11 @@ jobs:
             $latestCommitSha = $latestCommit.sha
             Write-Output "Using commit SHA: $latestCommitSha for SARIF uploads."
         } else {
-            Write-Output "Failed to fetch the latest commit SHA. Exiting."
+            Write-Error "Failed to fetch the latest commit SHA."
             exit 1
         }
 
-        # --- Migrate Alerts ---
+        # Fetch and Convert Alerts to SARIF
         Write-Output "Fetching alerts from source repository..."
         $alertsUrl = "https://api.github.com/repos/$SourceOrg/$SourceRepo/code-scanning/alerts"
         $alertsList = & gh api -X GET $alertsUrl -H "Authorization: token $SourceToken" | ConvertFrom-Json
@@ -175,7 +170,7 @@ jobs:
             Write-Output "SARIF file for alerts created at $sarifFileAlerts."
         }
 
-        # --- Migrate Analyses ---
+        # Migrate Analyses
         Write-Output "Fetching analyses from source repository..."
         $analysesUrl = "https://api.github.com/repos/$SourceOrg/$SourceRepo/code-scanning/analyses"
         $analysesList = & gh api -X GET $analysesUrl -H "Authorization: token $SourceToken" | ConvertFrom-Json
@@ -185,7 +180,6 @@ jobs:
             $sarifFileAnalysis = "$SarifDirectory\analysis_$analysisId.sarif"
             Write-Output "Processing analysis ID: $analysisId"
 
-            # Fetch analysis details
             $analysisDetailsUrl = "https://api.github.com/repos/$SourceOrg/$SourceRepo/code-scanning/analyses/$analysisId"
             $analysisData = & gh api -X GET $analysisDetailsUrl -H "Authorization: token $SourceToken" | ConvertFrom-Json
 
