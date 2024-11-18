@@ -1,0 +1,43 @@
+name: "Migrate Repository-Level Secret scanning results remediation state"
+description: "Provide the migration's source and target organization details"
+title: "Migrate Secrets scanning results remediation state from {{source_org}} to {{target_org}}"
+labels:
+  - migration
+  - secret scanning
+
+body:
+  - type: input
+    id: source_org
+    attributes:
+      label: "Source Organization"
+      description: "Enter the name of the source organization"
+      placeholder: "e.g., sam-org1"
+    validations:
+      required: true
+
+  - type: input
+    id: source_repo
+    attributes:
+      label: "Source Repository"
+      description: "Enter the name of the source Repository"
+      placeholder: "e.g., s_repo1"
+    validations:
+      required: true
+
+  - type: input
+    id: target_org
+    attributes:
+      label: "Target Organization"
+      description: "Enter the name of the target organization"
+      placeholder: "e.g., sam-org2"
+    validations:
+      required: true
+
+  - type: input
+    id: target_repo
+    attributes:
+      label: "Target Repository"
+      description: "Enter the name of the target Repository"
+      placeholder: "e.g., t_repo1"
+    validations:
+      required: true
