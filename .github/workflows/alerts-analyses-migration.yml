@@ -23,6 +23,9 @@ jobs:
           Write-Error "Target Token is missing!"
           exit 1
         }
+      env:
+        SOURCE_TOKEN: ${{ secrets.SOURCE_TOKEN }}
+        TARGET_TOKEN: ${{ secrets.TARGET_TOKEN }}
 
     - name: Extract Issue Body Details
       id: extract_issue
