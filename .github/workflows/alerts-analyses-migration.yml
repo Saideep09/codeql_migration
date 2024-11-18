@@ -6,26 +6,22 @@ on:
 
 jobs:
   migrate:
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
 
     steps:
     - name: Checkout the repository
       uses: actions/checkout@v3
 
-    - name: Set up PowerShell
-      uses: actions/setup-powershell@v2
-
     - name: Validate PAT Tokens
       run: |
-        if [[ -z "${{ secrets.SOURCE_TOKEN }}" ]]; then
+        if [ -z "${{ secrets.SOURCE_TOKEN }}" ]; then
           echo "Source Token is missing!"
           exit 1
         fi
-        if [[ -z "${{ secrets.TARGET_TOKEN }}" ]]; then
+        if [ -z "${{ secrets.TARGET_TOKEN }}" ]; then
           echo "Target Token is missing!"
           exit 1
         fi
-      shell: bash
 
     - name: Extract Issue Body Details
       id: extract_issue
