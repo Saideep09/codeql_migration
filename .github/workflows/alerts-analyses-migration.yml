@@ -1,4 +1,4 @@
-name: Migrate Repository-Level Secret Scanning Results Remediation State
+name: Migrate Repository-Level CODEQL Scanning Results 
 
 on:
   issues:
