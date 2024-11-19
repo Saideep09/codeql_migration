@@ -67,7 +67,7 @@ jobs:
     # Step 5: Run the PowerShell migration script
     - name: Run the PowerShell migration script
       run: |
-        pwsh -File ./scripts/final.ps1 `
+        pwsh -File ./script/final.ps1 `
           -sourceOrg "${{ steps.issue_body.outputs.source_org }}" `
           -sourceRepo "${{ steps.issue_body.outputs.source_repo }}" `
           -targetOrg "${{ steps.issue_body.outputs.target_org }}" `
