@@ -13,11 +13,7 @@ jobs:
     - name: Checkout the repository
       uses: actions/checkout@v3
 
-    # Step 2: Set up PowerShell Core
-    - name: Set up PowerShell
-      uses: actions/setup-pwsh@v2
-
-    # Step 3: Validate PAT tokens
+    # Step 2: Validate PAT tokens
     - name: Validate PAT tokens
       run: |
         if [[ -z "${{ secrets.SOURCE_TOKEN }}" ]]; then
@@ -30,7 +26,7 @@ jobs:
         fi
       shell: bash
 
-    # Step 4: Extract Issue Details
+    # Step 3: Extract Issue Details
     - name: Extract Issue Details
       id: issue_body
       uses: actions/github-script@v6
@@ -60,7 +56,7 @@ jobs:
           core.setOutput("target_org", targetOrg);
           core.setOutput("target_repo", targetRepo);
 
-    # Step 5: Print Variables (for debugging)
+    # Step 4: Print Variables (for debugging)
     - name: Print Extracted Variables
       run: |
         echo "Source Organization: ${{ steps.issue_body.outputs.source_org }}"
@@ -68,7 +64,7 @@ jobs:
         echo "Target Organization: ${{ steps.issue_body.outputs.target_org }}"
         echo "Target Repository: ${{ steps.issue_body.outputs.target_repo }}"
 
-    # Step 6: Run the PowerShell migration script
+    # Step 5: Run the PowerShell migration script
     - name: Run the PowerShell migration script
       run: |
         pwsh -File ./scripts/migrate_secret_states.ps1 `
