@@ -9,11 +9,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    # Step 1: Checkout the repository
     - name: Checkout the repository
       uses: actions/checkout@v3
 
-    # Step 2: Validate PAT tokens
     - name: Validate PAT tokens
       run: |
         if [[ -z "${{ secrets.SOURCE_TOKEN }}" ]]; then
@@ -26,46 +24,13 @@ jobs:
         fi
       shell: bash
 
-    # Step 3: Extract Issue Details
-    - name: Extract Issue Details
-      id: issue_body
-      uses: actions/github-script@v6
-      with:
-        script: |
-          const issueBody = context.payload.issue.body;
+    - name: Set up environment for GitHub CLI
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-          // Extract organization and repository details from issue body
-          const sourceOrgMatch = issueBody.match(/### Source Organization\s*\n*(.*)/);
-          const sourceRepoMatch = issueBody.match(/### Source Repository\s*\n*(.*)/);
-          const targetOrgMatch = issueBody.match(/### Target Organization\s*\n*(.*)/);
-          const targetRepoMatch = issueBody.match(/### Target Repository\s*\n*(.*)/);
-
-          const sourceOrg = sourceOrgMatch ? sourceOrgMatch[1].trim() : "Not provided";
-          const sourceRepo = sourceRepoMatch ? sourceRepoMatch[1].trim() : "Not provided";
-          const targetOrg = targetOrgMatch ? targetOrgMatch[1].trim() : "Not provided";
-          const targetRepo = targetRepoMatch ? targetRepoMatch[1].trim() : "Not provided";
-
-          // Log extracted details
-          console.log("Source Organization: ", sourceOrg);
-          console.log("Source Repository: ", sourceRepo);
-          console.log("Target Organization: ", targetOrg);
-          console.log("Target Repository: ", targetRepo);
-
-          core.setOutput("source_org", sourceOrg);
-          core.setOutput("source_repo", sourceRepo);
-          core.setOutput("target_org", targetOrg);
-          core.setOutput("target_repo", targetRepo);
-
-    # Step 4: Print Variables (for debugging)
-    - name: Print Extracted Variables
-      run: |
-        echo "Source Organization: ${{ steps.issue_body.outputs.source_org }}"
-        echo "Source Repository: ${{ steps.issue_body.outputs.source_repo }}"
-        echo "Target Organization: ${{ steps.issue_body.outputs.target_org }}"
-        echo "Target Repository: ${{ steps.issue_body.outputs.target_repo }}"
-
-    # Step 5: Run the PowerShell migration script
     - name: Run the PowerShell migration script
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
         pwsh -File ./script/final.ps1 `
           -sourceOrg "${{ steps.issue_body.outputs.source_org }}" `
